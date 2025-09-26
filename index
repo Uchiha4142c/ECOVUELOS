@@ -1,0 +1,736 @@
+import React, { useState, useMemo } from 'react';
+import { Plus, Edit3, Trash2, Download, BarChart3, PieChart, Calendar, Clock, Users, MapPin } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart as RechartsPieChart, Cell, ResponsiveContainer, LineChart, Line, Pie } from 'recharts';
+
+const PersonalSantiagoManager = () => {
+  const [personal, setPersonal] = useState([
+    {
+      id: 1,
+      fecha: '2025-09-29',
+      nombre: 'ROBERTO TAGLE',
+      oficina: 'OF. TRANSITORIA GERENTES',
+      transporteLlegada: {
+        fecha: '2025-09-29',
+        desde: 'AEROPUERTO',
+        hasta: 'PLANTA',
+        horario: '10:07',
+        vuelo: 'KF191'
+      },
+      transporteRetorno: {
+        fecha: '2025-10-01',
+        desde: 'PLANTA',
+        hasta: 'AEROPUERTO',
+        horario: '15:00',
+        vuelo: 'KF191'
+      },
+      ceco: 'AREA DE CONTROL INTERNO',
+      areaResponsable: 'AREA DE CONTROL INTERNO'
+    },
+    {
+      id: 2,
+      fecha: '2025-09-29',
+      nombre: 'OSCAR CASTAÑEDA',
+      oficina: 'OF. GERENCIA GENERAL',
+      transporteLlegada: {
+        fecha: '2025-09-29',
+        desde: 'AEROPUERTO',
+        hasta: 'PLANTA',
+        horario: '12:06',
+        vuelo: 'KGD01'
+      },
+      transporteRetorno: {
+        fecha: '2025-10-01',
+        desde: 'PLANTA',
+        hasta: 'AEROPUERTO',
+        horario: '17:30',
+        vuelo: 'KGD01'
+      },
+      ceco: 'GCIA. GENERAL',
+      areaResponsable: 'GCIA. GENERAL'
+    }
+  ]);
+
+  const [editingId, setEditingId] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [activeTab, setActiveTab] = useState('lista');
+  const [formData, setFormData] = useState({
+    fecha: '',
+    nombre: '',
+    oficina: '',
+    transporteLlegada: { fecha: '', desde: '', hasta: '', horario: '', vuelo: '' },
+    transporteRetorno: { fecha: '', desde: '', hasta: '', horario: '', vuelo: '' },
+    ceco: '',
+    areaResponsable: ''
+  });
+
+  const resetForm = () => {
+    setFormData({
+      fecha: '',
+      nombre: '',
+      oficina: '',
+      transporteLlegada: { fecha: '', desde: '', hasta: '', horario: '', vuelo: '' },
+      transporteRetorno: { fecha: '', desde: '', hasta: '', horario: '', vuelo: '' },
+      ceco: '',
+      areaResponsable: ''
+    });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (editingId) {
+      setPersonal(personal.map(p => p.id === editingId ? { ...formData, id: editingId } : p));
+    } else {
+      setPersonal([...personal, { ...formData, id: Date.now() }]);
+    }
+    resetForm();
+  };
+
+  const handleEdit = (person) => {
+    setFormData(person);
+    setEditingId(person.id);
+    setShowForm(true);
+  };
+
+  const handleDelete = (id) => {
+    setPersonal(personal.filter(p => p.id !== id));
+  };
+
+  const exportToTxt = () => {
+    const content = `REPORTE PERSONAL DE SANTIAGO EN PLANTA
+MES: SEPTIEMBRE 2025
+Fecha de generación: ${new Date().toLocaleDateString('es-CL')}
+
+================================================================
+RESUMEN GENERAL
+================================================================
+Total de personal: ${personal.length}
+Áreas representadas: ${new Set(personal.map(p => p.areaResponsable)).size}
+
+================================================================
+DETALLE POR PERSONA
+================================================================
+
+${personal.map((person, index) => `
+${index + 1}. ${person.nombre}
+   ────────────────────────────────────────────
+   • Oficina: ${person.oficina}
+   • CECO: ${person.ceco}
+   • Área Responsable: ${person.areaResponsable}
+   
+   TRANSPORTE LLEGADA:
+   • Fecha: ${person.transporteLlegada.fecha}
+   • Ruta: ${person.transporteLlegada.desde} → ${person.transporteLlegada.hasta}
+   • Horario: ${person.transporteLlegada.horario}
+   • Vuelo: ${person.transporteLlegada.vuelo}
+   
+   TRANSPORTE RETORNO:
+   • Fecha: ${person.transporteRetorno.fecha}
+   • Ruta: ${person.transporteRetorno.desde} → ${person.transporteRetorno.hasta}
+   • Horario: ${person.transporteRetorno.horario}
+   • Vuelo: ${person.transporteRetorno.vuelo}
+`).join('\n')}
+
+================================================================
+RESUMEN POR ÁREA
+================================================================
+${Object.entries(personal.reduce((acc, p) => {
+  acc[p.areaResponsable] = (acc[p.areaResponsable] || 0) + 1;
+  return acc;
+}, {})).map(([area, count]) => `• ${area}: ${count} persona${count > 1 ? 's' : ''}`).join('\n')}
+
+================================================================
+HORARIOS DE LLEGADA
+================================================================
+${personal.map(p => `• ${p.nombre}: ${p.transporteLlegada.horario} (${p.transporteLlegada.vuelo})`).join('\n')}
+
+================================================================
+HORARIOS DE RETORNO
+================================================================
+${personal.map(p => `• ${p.nombre}: ${p.transporteRetorno.horario} (${p.transporteRetorno.vuelo})`).join('\n')}
+
+────────────────────────────────────────────────────────────
+Este reporte ha sido generado automáticamente por el Sistema
+de Gestión de Personal Santiago en Planta.
+────────────────────────────────────────────────────────────`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `personal_santiago_${new Date().toISOString().split('T')[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Datos para gráficos
+  const areaData = useMemo(() => {
+    const areas = personal.reduce((acc, p) => {
+      const area = p.areaResponsable || 'Sin área';
+      acc[area] = (acc[area] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(areas).map(([name, value]) => ({ name, value }));
+  }, [personal]);
+
+  const oficinasData = useMemo(() => {
+    const oficinas = personal.reduce((acc, p) => {
+      const oficina = p.oficina || 'Sin oficina';
+      acc[oficina] = (acc[oficina] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(oficinas).map(([name, value]) => ({ name: name.length > 20 ? name.substring(0, 20) + '...' : name, value, fullName: name }));
+  }, [personal]);
+
+  const horariosLlegada = useMemo(() => {
+    return personal.map(p => ({
+      nombre: p.nombre.split(' ')[0],
+      horario: p.transporteLlegada.horario,
+      minutos: parseInt(p.transporteLlegada.horario?.split(':')[0] || 0) * 60 + parseInt(p.transporteLlegada.horario?.split(':')[1] || 0)
+    })).sort((a, b) => a.minutos - b.minutos);
+  }, [personal]);
+
+  const COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1', '#84CC16'];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl shadow-xl p-8 mb-8 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">Personal Santiago en Planta</h1>
+              <p className="text-blue-100 text-lg">Sistema de Gestión - Septiembre 2025</p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="bg-white/20 rounded-lg p-4 text-center">
+                <Users className="w-8 h-8 mx-auto mb-2" />
+                <div className="text-2xl font-bold">{personal.length}</div>
+                <div className="text-sm">Personal</div>
+              </div>
+              <div className="bg-white/20 rounded-lg p-4 text-center">
+                <MapPin className="w-8 h-8 mx-auto mb-2" />
+                <div className="text-2xl font-bold">{new Set(personal.map(p => p.areaResponsable)).size}</div>
+                <div className="text-sm">Áreas</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="bg-white rounded-lg shadow-lg mb-6">
+          <div className="flex border-b border-gray-200">
+            {[
+              { id: 'lista', label: 'Lista Personal', icon: Users },
+              { id: 'graficos', label: 'Análisis y Gráficos', icon: BarChart3 },
+              { id: 'form', label: showForm ? (editingId ? 'Editar' : 'Agregar') : 'Nuevo', icon: Plus }
+            ].map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => {
+                  if (id === 'form') {
+                    setShowForm(!showForm);
+                    if (!showForm) setActiveTab('form');
+                    else {
+                      setActiveTab('lista');
+                      resetForm();
+                    }
+                  } else {
+                    setActiveTab(id);
+                    setShowForm(false);
+                  }
+                }}
+                className={`flex items-center px-6 py-4 font-medium transition-all ${
+                  activeTab === id || (id === 'form' && showForm)
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                    : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                }`}
+              >
+                <Icon className="w-5 h-5 mr-2" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Content */}
+        {activeTab === 'lista' && !showForm && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-800">Lista de Personal</h2>
+              <button
+                onClick={exportToTxt}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium flex items-center space-x-2 transition-colors shadow-lg"
+              >
+                <Download className="w-5 h-5" />
+                <span>Exportar Reporte</span>
+              </button>
+            </div>
+
+            <div className="grid gap-6">
+              {personal.map((person) => (
+                <div key={person.id} className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow">
+                  <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-6">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="text-2xl font-bold mb-2">{person.nombre}</h3>
+                        <p className="text-blue-100 text-lg">{person.oficina}</p>
+                        <div className="mt-3 inline-block bg-white/20 px-4 py-2 rounded-full">
+                          <span className="font-semibold text-lg">CECO: {person.ceco}</span>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEdit(person)}
+                          className="bg-white/20 hover:bg-white/30 p-2 rounded-lg transition-colors"
+                        >
+                          <Edit3 className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(person.id)}
+                          className="bg-red-500/20 hover:bg-red-500/30 p-2 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-6">
+                    <div className="grid md:grid-cols-2 gap-6">
+                      {/* Transporte Llegada */}
+                      <div className="bg-green-50 rounded-lg p-4">
+                        <h4 className="font-semibold text-green-800 mb-3 flex items-center">
+                          <Calendar className="w-4 h-4 mr-2" />
+                          Transporte Llegada
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                          <div><span className="font-medium">Fecha:</span> {person.transporteLlegada.fecha}</div>
+                          <div><span className="font-medium">Ruta:</span> {person.transporteLlegada.desde} → {person.transporteLlegada.hasta}</div>
+                          <div className="flex items-center"><Clock className="w-4 h-4 mr-1" /><span className="font-medium">Horario:</span> {person.transporteLlegada.horario}</div>
+                          <div><span className="font-medium">Vuelo:</span> <span className="bg-green-200 px-2 py-1 rounded font-mono">{person.transporteLlegada.vuelo}</span></div>
+                        </div>
+                      </div>
+
+                      {/* Transporte Retorno */}
+                      <div className="bg-orange-50 rounded-lg p-4">
+                        <h4 className="font-semibold text-orange-800 mb-3 flex items-center">
+                          <Calendar className="w-4 h-4 mr-2" />
+                          Transporte Retorno
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                          <div><span className="font-medium">Fecha:</span> {person.transporteRetorno.fecha}</div>
+                          <div><span className="font-medium">Ruta:</span> {person.transporteRetorno.desde} → {person.transporteRetorno.hasta}</div>
+                          <div className="flex items-center"><Clock className="w-4 h-4 mr-1" /><span className="font-medium">Horario:</span> {person.transporteRetorno.horario}</div>
+                          <div><span className="font-medium">Vuelo:</span> <span className="bg-orange-200 px-2 py-1 rounded font-mono">{person.transporteRetorno.vuelo}</span></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 p-4 bg-indigo-50 rounded-lg">
+                      <h4 className="font-semibold text-indigo-800 mb-2">Área Responsable</h4>
+                      <p className="text-indigo-700 font-medium">{person.areaResponsable}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'graficos' && (
+          <div className="space-y-8">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-800">Análisis y Gráficos</h2>
+              <div className="bg-blue-100 px-4 py-2 rounded-lg">
+                <span className="text-blue-800 font-medium">Total: {personal.length} personas</span>
+              </div>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-8">
+              {/* Distribución por Área */}
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center">
+                  <PieChart className="w-6 h-6 mr-2 text-blue-600" />
+                  Distribución por CECO/Área
+                </h3>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Pie
+                        data={areaData}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        labelLine={false}
+                      >
+                        {areaData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Distribución por Oficina */}
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center">
+                  <BarChart3 className="w-6 h-6 mr-2 text-green-600" />
+                  Personal por Oficina
+                </h3>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={oficinasData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+                      <YAxis />
+                      <Tooltip 
+                        formatter={(value, name) => [value, 'Personal']}
+                        labelFormatter={(label) => {
+                          const item = oficinasData.find(d => d.name === label);
+                          return item ? item.fullName : label;
+                        }}
+                      />
+                      <Bar dataKey="value" fill="#10B981" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            {/* Timeline de Llegadas */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center">
+                <Clock className="w-6 h-6 mr-2 text-purple-600" />
+                Timeline de Horarios de Llegada
+              </h3>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={horariosLlegada}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="nombre" />
+                    <YAxis 
+                      domain={['dataMin - 30', 'dataMax + 30']}
+                      tickFormatter={(value) => {
+                        const hours = Math.floor(value / 60);
+                        const mins = value % 60;
+                        return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+                      }}
+                    />
+                    <Tooltip 
+                      labelFormatter={(value) => `Persona: ${value}`}
+                      formatter={(value) => {
+                        const hours = Math.floor(value / 60);
+                        const mins = value % 60;
+                        return [`${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`, 'Horario'];
+                      }}
+                    />
+                    <Line type="monotone" dataKey="minutos" stroke="#8B5CF6" strokeWidth={3} dot={{ fill: '#8B5CF6', r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Estadísticas Rápidas */}
+            <div className="grid md:grid-cols-4 gap-6">
+              <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl p-6 text-center">
+                <Users className="w-8 h-8 mx-auto mb-2" />
+                <div className="text-3xl font-bold">{personal.length}</div>
+                <div className="text-blue-100">Total Personal</div>
+              </div>
+              <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl p-6 text-center">
+                <MapPin className="w-8 h-8 mx-auto mb-2" />
+                <div className="text-3xl font-bold">{new Set(personal.map(p => p.areaResponsable)).size}</div>
+                <div className="text-green-100">Áreas Diferentes</div>
+              </div>
+              <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl p-6 text-center">
+                <Calendar className="w-8 h-8 mx-auto mb-2" />
+                <div className="text-3xl font-bold">{new Set(personal.map(p => p.transporteLlegada.fecha)).size}</div>
+                <div className="text-purple-100">Fechas de Llegada</div>
+              </div>
+              <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl p-6 text-center">
+                <Clock className="w-8 h-8 mx-auto mb-2" />
+                <div className="text-3xl font-bold">{new Set(personal.map(p => p.transporteLlegada.vuelo)).size}</div>
+                <div className="text-orange-100">Vuelos Únicos</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showForm && (
+          <div className="bg-white rounded-xl shadow-lg p-8">
+            <h2 className="text-2xl font-bold mb-6 text-gray-800">
+              {editingId ? 'Editar Personal' : 'Agregar Nuevo Personal'}
+            </h2>
+            
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Información Básica */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-700 border-b pb-2">Información Básica</h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                    <input
+                      type="date"
+                      value={formData.fecha}
+                      onChange={(e) => setFormData({...formData, fecha: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
+                    <input
+                      type="text"
+                      value={formData.nombre}
+                      onChange={(e) => setFormData({...formData, nombre: e.target.value.toUpperCase()})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="NOMBRE APELLIDO"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Oficina</label>
+                    <input
+                      type="text"
+                      value={formData.oficina}
+                      onChange={(e) => setFormData({...formData, oficina: e.target.value.toUpperCase()})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="OF. NOMBRE DE OFICINA"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* CECO y Área */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-700 border-b pb-2">CECO y Responsabilidad</h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">CECO</label>
+                    <input
+                      type="text"
+                      value={formData.ceco}
+                      onChange={(e) => setFormData({...formData, ceco: e.target.value.toUpperCase()})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="CÓDIGO CECO"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Área Responsable</label>
+                    <input
+                      type="text"
+                      value={formData.areaResponsable}
+                      onChange={(e) => setFormData({...formData, areaResponsable: e.target.value.toUpperCase()})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="ÁREA RESPONSABLE"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Transporte */}
+              <div className="grid md:grid-cols-2 gap-8">
+                {/* Transporte Llegada */}
+                <div className="bg-green-50 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-green-800 mb-4 flex items-center">
+                    <Calendar className="w-5 h-5 mr-2" />
+                    Transporte Llegada
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                      <input
+                        type="date"
+                        value={formData.transporteLlegada.fecha}
+                        onChange={(e) => setFormData({
+                          ...formData, 
+                          transporteLlegada: {...formData.transporteLlegada, fecha: e.target.value}
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                        required
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
+                        <input
+                          type="text"
+                          value={formData.transporteLlegada.desde}
+                          onChange={(e) => setFormData({
+                            ...formData, 
+                            transporteLlegada: {...formData.transporteLlegada, desde: e.target.value.toUpperCase()}
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                          placeholder="AEROPUERTO"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
+                        <input
+                          type="text"
+                          value={formData.transporteLlegada.hasta}
+                          onChange={(e) => setFormData({
+                            ...formData, 
+                            transporteLlegada: {...formData.transporteLlegada, hasta: e.target.value.toUpperCase()}
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                          placeholder="PLANTA"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Horario</label>
+                        <input
+                          type="time"
+                          value={formData.transporteLlegada.horario}
+                          onChange={(e) => setFormData({
+                            ...formData, 
+                            transporteLlegada: {...formData.transporteLlegada, horario: e.target.value}
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Vuelo</label>
+                        <input
+                          type="text"
+                          value={formData.transporteLlegada.vuelo}
+                          onChange={(e) => setFormData({
+                            ...formData, 
+                            transporteLlegada: {...formData.transporteLlegada, vuelo: e.target.value.toUpperCase()}
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                          placeholder="KF191"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Transporte Retorno */}
+                <div className="bg-orange-50 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-orange-800 mb-4 flex items-center">
+                    <Calendar className="w-5 h-5 mr-2" />
+                    Transporte Retorno
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                      <input
+                        type="date"
+                        value={formData.transporteRetorno.fecha}
+                        onChange={(e) => setFormData({
+                          ...formData, 
+                          transporteRetorno: {...formData.transporteRetorno, fecha: e.target.value}
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                        required
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
+                        <input
+                          type="text"
+                          value={formData.transporteRetorno.desde}
+                          onChange={(e) => setFormData({
+                            ...formData, 
+                            transporteRetorno: {...formData.transporteRetorno, desde: e.target.value.toUpperCase()}
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                          placeholder="PLANTA"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
+                        <input
+                          type="text"
+                          value={formData.transporteRetorno.hasta}
+                          onChange={(e) => setFormData({
+                            ...formData, 
+                            transporteRetorno: {...formData.transporteRetorno, hasta: e.target.value.toUpperCase()}
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                          placeholder="AEROPUERTO"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Horario</label>
+                        <input
+                          type="time"
+                          value={formData.transporteRetorno.horario}
+                          onChange={(e) => setFormData({
+                            ...formData, 
+                            transporteRetorno: {...formData.transporteRetorno, horario: e.target.value}
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Vuelo</label>
+                        <input
+                          type="text"
+                          value={formData.transporteRetorno.vuelo}
+                          onChange={(e) => setFormData({
+                            ...formData, 
+                            transporteRetorno: {...formData.transporteRetorno, vuelo: e.target.value.toUpperCase()}
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                          placeholder="KF191"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botones */}
+              <div className="flex justify-end space-x-4 pt-6 border-t">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors flex items-center space-x-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>{editingId ? 'Actualizar' : 'Agregar'} Personal</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default PersonalSantiagoManager;
