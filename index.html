@@ -1,447 +1,116 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Personal Santiago - Septiembre 2025</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f4f4;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-        }
-        .form-section, .table-section, .chart-section {
-            margin: 20px 0;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 10px 0;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-        input, select, button {
-            padding: 5px;
-            margin: 2px;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-        }
-        button {
-            background-color: #4CAF50;
-            color: white;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        .export-btn {
-            background-color: #2196F3;
-        }
-        .export-btn:hover {
-            background-color: #0b7dda;
-        }
-        .message {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-            display: none;
-        }
-        .success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .chart-container {
-            height: 300px;
-            margin: 20px 0;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Alertas de Programación</title>
+  <style>
+    body { font-family: Arial; margin: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background-color: #f4f4f4; }
+    .alert { padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+    .hoy { background-color: #ffcccc; }
+    .manana { background-color: #ffe0b3; }
+    .semana { background-color: #ccffcc; }
+    .jueves-viernes { background-color: #cce5ff; }
+    .mes { background-color: #e0ccff; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Personal de Santiago en Planta - Septiembre 2025</h1>
-        
-        <!-- Formulario de Ingreso -->
-        <div class="form-section">
-            <h2>Ingreso de Datos</h2>
-            <form id="employeeForm">
-                <table>
-                    <tr>
-                        <td><label>Fecha:</label></td>
-                        <td><input type="date" id="fecha" required></td>
-                        <td><label>Nombre:</label></td>
-                        <td><input type="text" id="nombre" required></td>
-                    </tr>
-                    <tr>
-                        <td><label>Oficina:</label></td>
-                        <td><input type="text" id="oficina" required></td>
-                        <td><label>Fecha Llegada:</label></td>
-                        <td><input type="date" id="fechaLlegada" required></td>
-                    </tr>
-                    <tr>
-                        <td><label>Desde Llegada:</label></td>
-                        <td><input type="text" id="desdeLlegada" required></td>
-                        <td><label>Hasta Llegada:</label></td>
-                        <td><input type="text" id="hastaLlegada" required></td>
-                    </tr>
-                    <tr>
-                        <td><label>Hora Llegada:</label></td>
-                        <td><input type="time" id="horaLlegada" required></td>
-                        <td><label>Fecha Retorno:</label></td>
-                        <td><input type="date" id="fechaRetorno" required></td>
-                    </tr>
-                    <tr>
-                        <td><label>Desde Retorno:</label></td>
-                        <td><input type="text" id="desdeRetorno" required></td>
-                        <td><label>Hasta Retorno:</label></td>
-                        <td><input type="text" id="hastaRetorno" required></td>
-                    </tr>
-                    <tr>
-                        <td><label>Hora Retorno:</label></td>
-                        <td><input type="time" id="horaRetorno" required></td>
-                        <td><label>CECO:</label></td>
-                        <td><input type="text" id="ceco" required></td>
-                    </tr>
-                    <tr>
-                        <td><label>Área Responsable:</label></td>
-                        <td colspan="3"><input type="text" id="area" required></td>
-                    </tr>
-                </table>
-                <button type="submit">Ingresar Datos</button>
-            </form>
-            <div id="message" class="message"></div>
-            <button class="export-btn" onclick="exportToTxt()">Exportar a .txt</button>
-        </div>
 
-        <!-- Tabla de Datos -->
-        <div class="table-section">
-            <h2>Lista de Personal</h2>
-            <table id="dataTable">
-                <thead>
-                    <tr>
-                        <th>Fecha</th>
-                        <th>Nombre</th>
-                        <th>Oficina</th>
-                        <th>Fecha Llegada</th>
-                        <th>Desde Llegada</th>
-                        <th>Hasta Llegada</th>
-                        <th>Hora Llegada</th>
-                        <th>Fecha Retorno</th>
-                        <th>Desde Retorno</th>
-                        <th>Hasta Retorno</th>
-                        <th>Hora Retorno</th>
-                        <th>CECO</th>
-                        <th>Área Responsable</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                    <!-- Datos iniciales -->
-                    <tr>
-                        <td>29-09-2025</td>
-                        <td>Roberto Tagle</td>
-                        <td>Of. Transitoria Gerentes</td>
-                        <td>29-09-2025</td>
-                        <td>Aeropuerto</td>
-                        <td>Planta</td>
-                        <td>10:07</td>
-                        <td>01-10-2025</td>
-                        <td>Planta</td>
-                        <td>Aeropuerto</td>
-                        <td>15:00</td>
-                        <td>KF191</td>
-                        <td>Área de Control Interno</td>
-                    </tr>
-                    <tr>
-                        <td>29-09-2025</td>
-                        <td>Oscar Castañeda</td>
-                        <td>Of. Gerencia General</td>
-                        <td>29-09-2025</td>
-                        <td>Aeropuerto</td>
-                        <td>Planta</td>
-                        <td>12:06</td>
-                        <td>01-10-2025</td>
-                        <td>Planta</td>
-                        <td>Aeropuerto</td>
-                        <td>17:30</td>
-                        <td>KG001</td>
-                        <td>Gcia. General</td>
-                    </tr>
-                    <tr>
-                        <td>29-09-2025</td>
-                        <td>Oscar Castañeda</td>
-                        <td>Of. Gerencia General</td>
-                        <td>29-09-2025</td>
-                        <td>Aeropuerto</td>
-                        <td>Planta</td>
-                        <td>12:06</td>
-                        <td>01-10-2025</td>
-                        <td>Planta</td>
-                        <td>Aeropuerto</td>
-                        <td>17:30</td>
-                        <td>KP001</td>
-                        <td>Gcia. General y Proyectos</td>
-                    </tr>
-                    <tr>
-                        <td>29-09-2025</td>
-                        <td>Pedro Saez</td>
-                        <td>Of. Transitoria Gerentes</td>
-                        <td>29-09-2025</td>
-                        <td>Aeropuerto</td>
-                        <td>Planta</td>
-                        <td>12:06</td>
-                        <td>01-10-2025</td>
-                        <td>Planta</td>
-                        <td>Aeropuerto</td>
-                        <td>18:00</td>
-                        <td>KP257</td>
-                        <td>Gcia. de Proyectos e Innovación</td>
-                    </tr>
-                    <tr>
-                        <td>29-09-2025</td>
-                        <td>Richard Tapia</td>
-                        <td>Of. Transitoria Gerentes</td>
-                        <td>29-09-2025</td>
-                        <td>Aeropuerto</td>
-                        <td>Planta</td>
-                        <td>12:06</td>
-                        <td>01-10-2025</td>
-                        <td>Planta</td>
-                        <td>Aeropuerto</td>
-                        <td>16:30</td>
-                        <td>KF151</td>
-                        <td>Gcia. de Administración y Finanzas</td>
-                    </tr>
-                    <tr>
-                        <td>30-09-2025</td>
-                        <td>Matías Rodriguez</td>
-                        <td>Of. Transitoria Gerentes</td>
-                        <td>30-09-2025</td>
-                        <td>Aeropuerto</td>
-                        <td>Planta</td>
-                        <td>08:38</td>
-                        <td>02-10-2025</td>
-                        <td>Planta</td>
-                        <td>Aeropuerto</td>
-                        <td>18:20</td>
-                        <td>KF163</td>
-                        <td>Gcia. de Administración y Finanzas</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+<h2>Tabla de Programación</h2>
+<button onclick="agregarFila()">Agregar Fila</button>
+<table id="tabla">
+  <thead>
+    <tr>
+      <th>NOMBRE</th><th>FECHA</th><th>HORA</th><th>ORIGEN</th><th>DESTINO</th>
+      <th>DOMICILIO</th><th>CONTACTO</th><th>CECO</th><th>HOTEL</th><th>VUELO</th><th>ESTADO</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
 
-        <!-- Sección de Gráficos -->
-        <div class="chart-section">
-            <h2>Gráficos</h2>
-            <div id="chart1" class="chart-container">Gráfico de Personal por Área</div>
-            <div id="chart2" class="chart-container">Gráfico de Personal por Día</div>
-        </div>
-    </div>
+<h2>Alertas</h2>
+<div id="alertas"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        let employees = [
-            {fecha: '29-09-2025', nombre: 'Roberto Tagle', oficina: 'Of. Transitoria Gerentes', fechaLlegada: '29-09-2025', desdeLlegada: 'Aeropuerto', hastaLlegada: 'Planta', horaLlegada: '10:07', fechaRetorno: '01-10-2025', desdeRetorno: 'Planta', hastaRetorno: 'Aeropuerto', horaRetorno: '15:00', ceco: 'KF191', area: 'Área de Control Interno'},
-            {fecha: '29-09-2025', nombre: 'Oscar Castañeda', oficina: 'Of. Gerencia General', fechaLlegada: '29-09-2025', desdeLlegada: 'Aeropuerto', hastaLlegada: 'Planta', horaLlegada: '12:06', fechaRetorno: '01-10-2025', desdeRetorno: 'Planta', hastaRetorno: 'Aeropuerto', horaRetorno: '17:30', ceco: 'KG001', area: 'Gcia. General'},
-            {fecha: '29-09-2025', nombre: 'Oscar Castañeda', oficina: 'Of. Gerencia General', fechaLlegada: '29-09-2025', desdeLlegada: 'Aeropuerto', hastaLlegada: 'Planta', horaLlegada: '12:06', fechaRetorno: '01-10-2025', desdeRetorno: 'Planta', hastaRetorno: 'Aeropuerto', horaRetorno: '17:30', ceco: 'KP001', area: 'Gcia. General y Proyectos'},
-            {fecha: '29-09-2025', nombre: 'Pedro Saez', oficina: 'Of. Transitoria Gerentes', fechaLlegada: '29-09-2025', desdeLlegada: 'Aeropuerto', hastaLlegada: 'Planta', horaLlegada: '12:06', fechaRetorno: '01-10-2025', desdeRetorno: 'Planta', hastaRetorno: 'Aeropuerto', horaRetorno: '18:00', ceco: 'KP257', area: 'Gcia. de Proyectos e Innovación'},
-            {fecha: '29-09-2025', nombre: 'Richard Tapia', oficina: 'Of. Transitoria Gerentes', fechaLlegada: '29-09-2025', desdeLlegada: 'Aeropuerto', hastaLlegada: 'Planta', horaLlegada: '12:06', fechaRetorno: '01-10-2025', desdeRetorno: 'Planta', hastaRetorno: 'Aeropuerto', horaRetorno: '16:30', ceco: 'KF151', area: 'Gcia. de Administración y Finanzas'},
-            {fecha: '30-09-2025', nombre: 'Matías Rodriguez', oficina: 'Of. Transitoria Gerentes', fechaLlegada: '30-09-2025', desdeLlegada: 'Aeropuerto', hastaLlegada: 'Planta', horaLlegada: '08:38', fechaRetorno: '02-10-2025', desdeRetorno: 'Planta', hastaRetorno: 'Aeropuerto', horaRetorno: '18:20', ceco: 'KF163', area: 'Gcia. de Administración y Finanzas'}
-        ];
+<script>
+function agregarFila() {
+  const fila = document.createElement("tr");
+  for (let i = 0; i < 11; i++) {
+    const celda = document.createElement("td");
+    const input = document.createElement("input");
+    input.type = i === 1 ? "date" : "text";
+    celda.appendChild(input);
+    fila.appendChild(celda);
+  }
+  document.querySelector("#tabla tbody").appendChild(fila);
+}
 
-        // Inicializar tabla
-        function renderTable() {
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = '';
-            employees.forEach(emp => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${emp.fecha}</td>
-                    <td>${emp.nombre}</td>
-                    <td>${emp.oficina}</td>
-                    <td>${emp.fechaLlegada}</td>
-                    <td>${emp.desdeLlegada}</td>
-                    <td>${emp.hastaLlegada}</td>
-                    <td>${emp.horaLlegada}</td>
-                    <td>${emp.fechaRetorno}</td>
-                    <td>${emp.desdeRetorno}</td>
-                    <td>${emp.hastaRetorno}</td>
-                    <td>${emp.horaRetorno}</td>
-                    <td>${emp.ceco}</td>
-                    <td>${emp.area}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-            updateCharts();
-        }
+function generarAlertas() {
+  const hoy = new Date();
+  const manana = new Date(hoy);
+  manana.setDate(hoy.getDate() + 1);
 
-        // Formulario submit
-        document.getElementById('employeeForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const newEmp = {
-                fecha: document.getElementById('fecha').value.split('-').reverse().join('-'),
-                nombre: document.getElementById('nombre').value,
-                oficina: document.getElementById('oficina').value,
-                fechaLlegada: document.getElementById('fechaLlegada').value.split('-').reverse().join('-'),
-                desdeLlegada: document.getElementById('desdeLlegada').value,
-                hastaLlegada: document.getElementById('hastaLlegada').value,
-                horaLlegada: document.getElementById('horaLlegada').value,
-                fechaRetorno: document.getElementById('fechaRetorno').value.split('-').reverse().join('-'),
-                desdeRetorno: document.getElementById('desdeRetorno').value,
-                hastaRetorno: document.getElementById('hastaRetorno').value,
-                horaRetorno: document.getElementById('horaRetorno').value,
-                ceco: document.getElementById('ceco').value,
-                area: document.getElementById('area').value
-            };
-            employees.push(newEmp);
-            document.getElementById('message').textContent = 'Datos ingresados exitosamente para ' + newEmp.nombre + '!';
-            document.getElementById('message').className = 'message success';
-            document.getElementById('message').style.display = 'block';
-            this.reset();
-            renderTable();
-            setTimeout(() => {
-                document.getElementById('message').style.display = 'none';
-            }, 3000);
-        });
+  const jueves = new Date(hoy);
+  jueves.setDate(hoy.getDate() + ((4 - hoy.getDay() + 7) % 7)); // próximo jueves
+  const viernes = new Date(jueves);
+  viernes.setDate(jueves.getDate() + 1);
 
-        // Exportar a TXT
-        function exportToTxt() {
-            let content = 'Personal de Santiago en Planta - Septiembre 2025\n';
-            content += 'FECHA\tNOMBRE\tOFICINA\tFECHA_LLEGADA\tDESDE_LLEGADA\tHASTA_LLEGADA\tHORA_LLEGADA\tFECHA_RETORNO\tDESDE_RETORNO\tHASTA_RETORNO\tHORA_RETORNO\tCECO\tAREA_RESPONSABLE\n';
-            employees.forEach(emp => {
-                content += `${emp.fecha}\t${emp.nombre}\t${emp.oficina}\t${emp.fechaLlegada}\t${emp.desdeLlegada}\t${emp.hastaLlegada}\t${emp.horaLlegada}\t${emp.fechaRetorno}\t${emp.desdeRetorno}\t${emp.hastaRetorno}\t${emp.horaRetorno}\t${emp.ceco}\t${emp.area}\n`;
-            });
-            const blob = new Blob([content], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'personal_santiago_septiembre_2025.txt';
-            a.click();
-            URL.revokeObjectURL(url);
-        }
+  const finSemana = new Date(hoy);
+  finSemana.setDate(hoy.getDate() + 7);
 
-        // Gráficos con Chart.js
-        let chart1, chart2;
+  const finMes = new Date(hoy);
+  finMes.setMonth(hoy.getMonth() + 1);
 
-        function updateCharts() {
-            // Gráfico 1: Personal por Área
-            const areas = {};
-            employees.forEach(emp => {
-                areas[emp.area] = (areas[emp.area] || 0) + 1;
-            });
-            const ctx1 = document.getElementById('chart1').innerHTML = '<canvas id="canvas1"></canvas>';
-            const canvas1 = document.getElementById('canvas1');
-            if (chart1) chart1.destroy();
-            chart1 = new Chart(canvas1, {
-                type: 'pie',
-                data: {
-                    labels: Object.keys(areas),
-                    datasets: [{
-                        data: Object.values(areas),
-                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            });
+  const alertas = {
+    hoy: [],
+    manana: [],
+    juevesViernes: [],
+    semana: [],
+    mes: []
+  };
 
-            // Gráfico 2: Personal por Día
-            const days = {};
-            employees.forEach(emp => {
-                days[emp.fecha] = (days[emp.fecha] || 0) + 1;
-            });
-            const ctx2 = document.getElementById('chart2').innerHTML = '<canvas id="canvas2"></canvas>';
-            const canvas2 = document.getElementById('canvas2');
-            if (chart2) chart2.destroy();
-            chart2 = new Chart(canvas2, {
-                type: 'bar',
-                data: {
-                    labels: Object.keys(days),
-                    datasets: [{
-                        label: 'Número de Personas',
-                        data: Object.values(days),
-                        backgroundColor: '#36A2EB'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-        }
+  const filas = document.querySelectorAll("#tabla tbody tr");
+  filas.forEach(fila => {
+    const fechaInput = fila.cells[1].querySelector("input");
+    if (!fechaInput || !fechaInput.value) return;
 
-        // Inicializar
-        renderTable();
-        // Configurar fecha por defecto
-        document.getElementById('fecha').value = '2025-09-29';
-    </script>
+    const fecha = new Date(fechaInput.value);
+    const nombre = fila.cells[0].querySelector("input")?.value || "Sin nombre";
+
+    if (mismaFecha(fecha, hoy)) alertas.hoy.push(nombre);
+    else if (mismaFecha(fecha, manana)) alertas.manana.push(nombre);
+    else if (fecha >= jueves && fecha <= viernes) alertas.juevesViernes.push(nombre);
+    else if (fecha > hoy && fecha <= finSemana) alertas.semana.push(nombre);
+    else if (fecha > hoy && fecha <= finMes) alertas.mes.push(nombre);
+  });
+
+  mostrarAlertas(alertas);
+}
+
+function mismaFecha(a, b) {
+  return a.getFullYear() === b.getFullYear() &&
+         a.getMonth() === b.getMonth() &&
+         a.getDate() === b.getDate();
+}
+
+function mostrarAlertas(alertas) {
+  const contenedor = document.getElementById("alertas");
+  contenedor.innerHTML = "";
+
+  for (const tipo in alertas) {
+    if (alertas[tipo].length > 0) {
+      const div = document.createElement("div");
+      div.className = `alert ${tipo}`;
+      div.innerHTML = `<strong>${tipo.toUpperCase()}:</strong> ${alertas[tipo].join(", ")}`;
+      contenedor.appendChild(div);
+    }
+  }
+}
+
+// Actualizar alertas cada 10 segundos
+setInterval(generarAlertas, 10000);
+</script>
+
 </body>
 </html>
